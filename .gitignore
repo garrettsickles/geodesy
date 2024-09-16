@@ -50,3 +50,14 @@ modules.order
 Module.symvers
 Mkfile.old
 dkms.conf
+
+# JetBrains
+.idea
+*.iml
+cmake-*/
+
+# Mac
+.DS_Store
+
+# Not EXE in Tools from NGA
+!tools/*.exe
