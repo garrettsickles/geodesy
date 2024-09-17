@@ -1,0 +1,135 @@
+C   MICROSOFT FORTRAN SOURCE CODE FOR PROGRAM BILINEARINT   NIMA/GIMGC
+C                                          -----------      23 MARCH 1998
+  
+C************************************************************************* 
+C* XINC = SPACING IN MINUTES OF DIRECT ACCESS FILE 
+C* LGLEN = NUMBER OF LONGTITUDE BANDS IN THE DIRECT ACCESS FILE
+C*         EXAMPLE  30' FILE    721 BANDS
+C*                   1 DEG      361 BANDS
+C*                   5 DEG       73 BANDS
+C* IRECL = NUMBER OF WORDS PER RECORD  
+C* NREC  = NUMBER OF RECORDS IN THE DIRECT ACCESS  
+C* PHI,XLAM=LATITUDE AND LONGITUDE IN MINUTES (5400 TO -5400, 0 TO 21600)  
+C************************************************************************* 
+  
+C  GEOID HEIGHT BI-LINEAR INTERPOLATION METHOD 
+  
+      DIMENSION PHINS(2), XLAMWE(2), IREC(2,2), XNHT(2,2),W(10)
+C     NAMELIST /INPUT/ XINC, LGLEN, IRECL, NREC, TL, BL, WL 
+      OPEN (15,STATUS='UNKNOWN',FILE='BILINT.DAT')
+      READ(15,*) XINC, LGLEN, IRECL, NREC, TL, BL, WL
+  
+      OPEN(11,ACCESS='DIRECT',RECL=IRECL*4,FILE='DIRACC.OUT')
+      XEL=21600.0
+      WRITE(6,40)  
+      WRITE(6,50)TL,BL,WL,XEL
+      NUM = 1  
+  
+C  READ THE COORDINATES OF THE INTERPOLATED POINT IN MINUTES.  
+    5 READ(15,*,END=99)PHI,XLAM 
+    
+      IF( XLAM .LT. 0.0 ) THEN
+	 WRITE(6,*) 'LONGITUDE MUST BE BETWEEN 0.0 AND 21600.0
+     *         - PROGRAM TERMINATED'
+          GO TO 100
+      ELSE
+          CONTINUE
+      END IF
+
+      WRITE(6,60)NUM
+  
+  
+C  DETERMINE THE GRID POINTS.  
+      CALL BORDER(PHI,XLAM,XINC,PHINS,XLAMWE,IFLAG)  
+  
+C  READ THE GEOID HEIGHTS FOR EACH GRID POINT FROM THE 
+C  GEOID HEIGHT FILE.  
+  
+      DO 10 I=1,2  
+        DO 20 J=1,2
+          CALL RECORD( PHINS(I),XLAMWE(J),TL,WL,LGLEN,XINC,IREC(I,J))  
+          READ(11,REC=IREC(I,J)) (W(II),II=1,IRECL)
+          XNHT(I,J) = W(IRECL) 
+          IF (I.EQ.1.AND.J.EQ.1) PRINT 11,W(1),W(2),XNHT(I,J)  
+          IF (I.EQ.1.AND.J.EQ.2) PRINT 12,W(1),W(2),XNHT(I,J)  
+          IF (I.EQ.2.AND.J.EQ.1) PRINT 13,W(1),W(2),XNHT(I,J)  
+          IF (I.EQ.2.AND.J.EQ.2) PRINT 14,W(1),W(2),XNHT(I,J)  
+   11  FORMAT(11X,'Southwest ',3(3X,F10.3))
+   12  FORMAT(11X,'Southeast ',3(3X,F10.3))
+   13  FORMAT(11X,'Northwest ',3(3X,F10.3))
+   14  FORMAT(11X,'Northeast ',3(3X,F10.3))                                  
+   20  CONTINUE
+   10  CONTINUE
+
+C  INTERPOLATE THE GEOID HEIGHT FOR THE GIVEN POINT.
+  
+      A0 = XNHT(1,1)
+      A1 = XNHT(1,2) - XNHT(1,1)
+      A2 = XNHT(2,1) - XNHT(1,1)
+      A3 = XNHT(1,1) + XNHT(2,2) - XNHT(1,2) - XNHT(2,1)
+      X = (XLAM - XLAMWE(1)) / (XLAMWE(2) - XLAMWE(1)) 
+	IF(XLAM .EQ. 21600.0)X = 0.0
+      Y = (PHI - PHINS(1)) / (PHINS(2) - PHINS(1)) 
+      XNHTI = A0 + A1 * X + A2 * Y + A3 * X * Y
+   15 WRITE(6,30)PHI, XLAM, XNHTI  
+      NUM = NUM + 1
+      GO TO 5  
+   99 CONTINUE 
+   30 FORMAT(/,'   INTERPOLATED VALUE ->',3(F10.3,3X)/)
+   50 FORMAT(/,5X,'AREA OF INTERPOLATION:',//,' Top Latitude    = ',
+     * F10.3,/,' Bottom Latitude = ',F10.3,/,' West Longitude  = ',
+     * F10.3,/,' East Longitude  = ', F10.3,///)
+
+   40 FORMAT('1','B I - L I N E A R   I N T E R P O L A T I O N    ',  
+     *'M E T H O D',/,'        (ALL COORDINATES IN MINUTES)',//)
+   60 FORMAT(/,' POINT # ',I3,13X,' Latitude ',3x,'Longitude ',
+     * 3x,'Geoid Height'/) 
+  
+  100 STOP 
+      END  
+      
+      SUBROUTINE RECORD( LAT,LONG,TOPLAT,WL,LGLEN,XINC,IREC)
+      IMPLICIT REAL*4 (A-H,O-Z)
+      REAL*4 LAT, LONG 
+      IPOSLT = NINT((TOPLAT - LAT)/XINC)
+      IPOSLG = NINT((LONG - WL)/XINC) + 1  
+      IREC = IPOSLT * LGLEN + IPOSLG
+      RETURN
+      END  
+      
+      SUBROUTINE BORDER(PHI,XLAM,XINC,PHINS,XLAMWE)
+      IMPLICIT REAL*4 (A-H, O-Z)
+      DIMENSION PHINS(2), XLAMWE(2)
+ 
+C     LOCATION OF GRID POINTS  
+
+      PHIINT = INT(PHI/XINC) * XINC
+      XLMINT = INT(XLAM/XINC) * XINC
+      IF(ABS(PHI) .NE. 5400)THEN
+       IF ( PHI .LT. 0.0 ) THEN
+          XLIM1 = PHIINT + SIGN(XINC,PHI)  
+          XLIM2 = PHIINT
+       ELSE
+          XLIM1 = PHIINT
+          XLIM2 = PHIINT + SIGN(XINC,PHI)  
+       END IF
+      ELSE
+       IF ( PHI .LT. 0.0 ) THEN
+	  XLIM1 = PHIINT
+	  XLIM2 = PHIINT + XINC
+       ELSE
+	  XLIM1 = PHIINT - XINC
+	  XLIM2 = PHIINT
+       ENDIF
+      ENDIF
+      PHINS(1) = XLIM1 
+      PHINS(2) = XLIM2 
+      XLAMWE(1) = XLMINT
+      XLAMWE(2) = XLAMWE(1) + XINC 
+      IF (XLAMWE(1) .EQ. 21600.0)THEN
+	  XLAMWE(1) = 0.0
+	  XLAMWE(2) = XLAMWE(1) + XINC
+      ENDIF
+      RETURN
+      END  
+

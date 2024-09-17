@@ -1,0 +1,274 @@
+C***********************************************************************
+C* THE FOLLOWING PARAMETERS ARE READ FROM THE NAMELISTS ON UNIT 5. 
+C* 
+C*                     LIMITS  
+C*   XLATN   =  NORTHERN LATITUDE BAND 
+C*   XLATS   =  SOUTHERN LATITUDE BAND 
+C*   XLONGW  =  WESTERNMOST LONGTITUDE BAND
+C*   XLONGE  =  EASTERNMOST LONGTITUDE BAND
+C*                XLONGW < XLONGE  
+C*   XMIN    =  SPACING OF A POINT GRIDDED FILE IN MINUTES 
+C* 
+C*                     DIRACC  
+C*   LGLEN   =  NUMBER OF LONGTITUDE BANDS IN THE DIRECT ACCESS FILE
+C*   IRECL   =  NUMBER OF WORDS PER RECORD 
+C*   NREC    =  NUMBER OF RECORDS IN DIRECT ACCESS FILE
+C*   XINC    =  SPACING IN MINUTES OF DIRECT ACCESS FILE
+C*   TOPLAT  =  NORTHERNMOST LATITUDE BAND 
+C*   BOTLAT  =  SOUTHERNMOST LATITUDE BAND 
+C*   WLONG   =  WESTERNMOST LONGITUDE BAND 
+C*   ELONG   =  EASTERNMOST LONGITUDE BAND 
+C* 
+C*                     OUTPUT  
+C*   NWR     =  NUMBER OF WORDS PER RECORD 
+C*   NRB     =  NUMBER OF RECORDS PER BLOCK
+C*   IPRT    =  EVERY IPRT RECORD IS PRINTED
+
+C*                     VARIABLES
+C*   NPTS  -  NUMBER OF POINTS 
+C*   NWB   -  NUMBER OF WORDS PER BLOCK
+C*   NWR   -  NUMBER OF WORDS PER RECORD
+C*   NRB   -  NUMBER OF RECORDS PER BLOCK  
+C*   IOUT  -  BLOCK COUNTER
+C************************************************************************* 
+C  
+C  GEOID HEIGHT BI-LINEAR INTERPOLATION METHOD 
+      DIMENSION PHINS(2), XLAMWE(2), IREC(2,2), XNHT(2,2)  
+      DIMENSION OUT(500),W(10) 
+      NAMELIST /LIMITS/ XLATN,XLATS,XLONGW,XLONGE,XMIN 
+      NAMELIST /DIRACC/ LGLEN,IRECL,NREC,XINC,TOPLAT,BOTLAT,WLONG,ELONG
+      NAMELIST /OUTPUT/ NWR,NRB,IPRT
+      DATA OUT/500*0.0/, PAD/-5401.0/  
+C  
+C     INPUT PROGRAM PARAMETERS 
+C  
+      READ(5,LIMITS)
+      READ(5,DIRACC)
+      READ(5,OUTPUT)
+      WRITE(6,40)  
+      WRITE(6,41)TOPLAT,BOTLAT,WLONG,ELONG,LGLEN,IRECL,NREC,XINC
+      WRITE(6,42)XLATN,XLATS,XLONGW,XLONGE,NWR,NRB,XMIN
+
+          IF (XLATN .GT. TOPLAT ) THEN 
+             XLATN = TOPLAT
+         PRINT *,'       ************* WARNING *************         ' 
+         PRINT *,' NORTHERNMOST LATITUDE VALUE OF OUTPUT FILE (XLATN) '
+         PRINT *,' MUST BE LESS THAN OR EQUAL TO THE TOP LATITUDE OF  '
+             PRINT *,' THE INPUT DIRECT ACCESS FILE (TOPLAT)!!'
+             PRINT *,' CHECK XLATN AND/OR TOPLAT FOR VALIDITY!!!'  
+             PRINT *,' PROGRAM WILL CONTINUE WITH:'
+             PRINT *,' XLATN = TOPLAT  = ',XLATN
+          END IF
+
+          IF (XLATS .LT. BOTLAT ) THEN 
+             XLATS = BOTLAT
+       PRINT *,'       ************* WARNING *************         '
+       PRINT *,' SOUTHERNMOST LATITUDE VALUE OF OUTPUT FILE (XLATS) '  
+       PRINT *,' MUST BE GREATER THAN OR EQUAL TO THE BOTTOM LATITUDE' 
+             PRINT *,' THE INPUT DIRECT ACCESS FILE (BOTLAT)!!'
+             PRINT *,' CHECK XLATS AND/OR BOTLAT FOR VALIDITY!!!'  
+             PRINT *,' PROGRAM WILL CONTINUE WITH:'
+             PRINT *,' XLATS = BOTLAT  = ',XLATS
+          END IF
+
+          IF (XLONGW .LT. WLONG ) THEN 
+             XLONGW = WLONG
+       PRINT *,'       ************* WARNING *************          '  
+       PRINT *,' WESTERNMOST LONGITUDE VALUE OF OUTPUT FILE (XLONGW) ' 
+       PRINT *,' MUST BE GREATER THAN OR EQUAL TO THE WEST LONGITUDE'  
+             PRINT *,' THE INPUT DIRECT ACCESS FILE (WLONG)!!' 
+             PRINT *,' CHECK XLONGW AND/OR WLONG FOR VALIDITY!!!'  
+             PRINT *,' PROGRAM WILL CONTINUE WITH:'
+             PRINT *,' XLONGW = WLONG  = ',XLONGW  
+          END IF
+
+          IF (XLONGE .GT. ELONG ) THEN 
+             XLONGE = ELONG
+       PRINT *,'       ************* WARNING *************          '  
+       PRINT *,' EASTERNMOST LONGITUDE VALUE OF OUTPUT FILE (XLONGE) ' 
+       PRINT *,' MUST BE LESS THAN OR EQUAL TO THE EAST LONGITUDE OF ' 
+             PRINT *,' THE INPUT DIRECT ACCESS FILE (ELONG)!!' 
+             PRINT *,' CHECK XLONGE AND/OR ELONG FOR VALIDITY!!!'  
+             PRINT *,' PROGRAM WILL CONTINUE WITH:'
+             PRINT *,' XLONGE = ELONG  = ',XLONGE  
+          END IF
+C  
+      WRITE(6,43)IPRT  
+C  
+      NPTS = 0 
+      NWB = NWR * NRB  
+      IOUT = 1 
+C  
+C  
+      OPEN(11,ACCESS='DIRECT',RECL=IRECL,RCDS=NREC)
+C     COORDINATES OF GRID IN MINUTES
+      LATN = XLATN 
+      LATS = XLATS 
+      LONGW = XLONGW
+      LONGE = XLONGE
+      MIN = XMIN
+
+      TSUP1 = ZCLOK('ON')  
+
+      TCPU1 = ZTIME('ON')  
+
+      DO 10 IPHI = LATN,LATS,-MIN  
+
+          IF ( LONGW .GT. LONGE ) LONGW = LONGW - 21600.
+
+          PHI = FLOAT( IPHI )  
+
+
+          DO 10 ILAM = LONGW,LONGE,MIN 
+
+
+              IF ( LONGW .LT. 0 .AND. ILAM .LT.0) THEN 
+                 XLAM = FLOAT( ILAM + 21600)
+              ELSE 
+                 XLAM = FLOAT( ILAM )  
+              END IF
+              IF ( XLAM .EQ. 21600.0) XLAM = 0.0
+
+              CALL BORDER(PHI,XLAM,XINC,PHINS,XLAMWE)  
+
+             IF(PHINS(1).LT.BOTLAT)PHINS(1)=BOTLAT 
+             IF(PHINS(2).GT.TOPLAT)PHINS(2)=TOPLAT 
+             IF(XLAMWE(2).GT.ELONG)XLAMWE(2)=ELONG 
+
+              DO 20 I=1,2  
+                 DO 20 J=1,2
+
+                   CALL RECORD( PHINS(I),XLAMWE(J),TOPLAT,WLONG,LGLEN, 
+     >                            XINC,IREC(I,J))  
+
+                     IF ( IREC(I,J) .GT. NREC .OR. 
+     >                    IREC(I,J) .LT. 1) THEN
+                        PRINT*,' ' 
+                        PRINT*,'         OUT OF BOUNDS RECORD        ' 
+                        PRINT*,' ' 
+                        WRITE( 6,*) PHI,XLAM,IREC(I,J) 
+                        GO TO 10
+                        END IF 
+
+                        READ(11,REC=IREC(I,J)) (W(IW),IW=1,IRECL)  
+
+                        XNHT(I,J) = W(IRECL)
+
+   20         CONTINUE 
+
+C  
+C  
+C  INTERPOLATE THE GEOID HEIGHT FOR THE GIVEN POINT.
+C  
+              A0 = XNHT(1,1)
+              A1 = XNHT(1,2) - XNHT(1,1)
+              A2 = XNHT(2,1) - XNHT(1,1)
+              A3 = XNHT(1,1) + XNHT(2,2) - XNHT(1,2) - XNHT(2,1)
+              X = (XLAM - XLAMWE(1)) / (XLAMWE(2) - XLAMWE(1)) 
+              Y = (PHI - PHINS(1)) / (PHINS(2) - PHINS(1)) 
+              XNHTI = A0 + A1 * X + A2 * Y + A3 * X * Y
+C  
+                  IF(XNHTI.LT.-200.) GO TO 10  
+C  
+              IF(XNHTI.LT.-200.) GO TO 10  
+
+C  
+              OUT(IOUT) = PHI/60.  
+
+              OUT(IOUT + 1) = XLAM/60. 
+
+              OUT(IOUT + 2) = XNHTI
+
+
+              IF ( MOD(NPTS,IPRT) .EQ. 0 ) THEN
+                  WRITE(6,*) (OUT(IOUT+JJ-1), JJ = 1, NWR )
+              END IF
+              IOUT = IOUT + NWR
+
+              IF ( IOUT .GT. NWB) THEN 
+                 WRITE(12) ( OUT(II) , II = 1, NWB )
+                 IOUT = 1  
+              END IF
+
+
+              NPTS = NPTS + 1  
+  10  CONTINUE 
+C  
+      DO 30 I = IOUT, NWB  
+         OUT(I) = PAD  
+  30  CONTINUE 
+
+      WRITE(12) ( OUT(II) , II = 1, NWB )  
+
+      TSUP2 = ZCLOK('STOP')
+      TCPU2 = ZTIME('STOP')
+
+      PRINT *,'   THE NUMBER OF POINTS COMPUTED ', NPTS
+      PRINT *,'   THE TOTAL SUP TIME IN SECONDS ', TSUP2
+      PRINT *,'   THE TOTAL CPU TIME IN SECONDS ', TCPU2
+      PRINT *,'   THE SUP TIME PER MEAN IN SECONDS',TSUP2/NPTS 
+      PRINT *,'   THE CPU TIME PER MEAN IN SECONDS',TCPU2/NPTS 
+
+40    FORMAT('1','GRIDDED GEOID HEIGHTS COMPUTED FROM THE 30 X 30 MIN. '
+     *,'FILE',/,' BY BILINEAR INTERPOLATION',/,' (COORDINATES IN MIN.)')
+41    FORMAT(///,5X,'INPUT DIRECT ACCESS FILE PARAMETERS:',//, 
+     *' TOP LATITUDE =       ',F10.3,/,
+     *' BOTTOM LATITUDE =    ',F10.3,/,
+     *' WEST LONGITUDE =     ',F10.3,/,
+     *' EAST LONGITUDE =     ',F10.3,/,
+     *' # OF LONG. BANDS =   ',I5,/,
+     *' # OF WORDS/RECORD =  ',I5,/,
+     *' # OF RECORDS =       ',I5,/,
+     *' GRID SPACING =       ',F6.1)
+ 42   FORMAT(///,5X,'OUTPUT FILE PARAMETERS',//,
+     *' TOP LATITUDE =       ',F10.3,/,
+     *' BOTTOM LATITUDE =    ',F10.3,/,
+     *' WEST LONGITUDE =     ',F10.3,/,
+     *' EAST LONGITUDE =     ',F10.3,/,
+     *' # WORDS/RECORD =     ',I5,/,
+     *' # RECORDS/BLOCK =    ',I5,/,
+     *' GRID SPACING =       ',F6.1,/) 
+ 43   FORMAT('1',4X,'EVERY NTH RECORD OF THE OUTPUT FILE IS PRINTED',/,
+     *5X,'N = ',I5,/,5X,'COORDINATES IN DECIMAL DEGREES',///)  
+
+   99 STOP 
+      END  
+
+      SUBROUTINE RECORD( LAT,LONG,TOPLAT,WLONG,LGLEN,XINC,IREC)
+      IMPLICIT REAL*4 (A-H,O-Z)
+      REAL*4 LAT, LONG 
+      IPOSLT = NINT((TOPLAT - LAT)/XINC)
+      IPOSLG = NINT((LONG-WLONG)/XINC) + 1 
+      IREC = IPOSLT * LGLEN + IPOSLG
+      RETURN
+      END  
+
+      SUBROUTINE BORDER(PHI,XLAM,XINC,PHINS,XLAMWE)
+      IMPLICIT REAL*4 (A-H, O-Z)
+      DIMENSION PHINS(2), XLAMWE(2)
+C     LOCATION OF GRID POINTS  
+
+      PHIINT = INT(PHI/XINC) * XINC
+      XLMINT = INT(XLAM/XINC) * XINC
+
+      IF ( PHI .LT. 0.0 ) THEN 
+          XLIM1 = PHIINT + SIGN(XINC,PHI)  
+          XLIM2 = PHIINT
+      ELSE 
+          XLIM1 = PHIINT
+          XLIM2 = PHIINT + SIGN(XINC,PHI)  
+      END IF
+
+      PHINS(1) = XLIM1 
+      PHINS(2) = XLIM2 
+
+      XLAMWE(1) = XLMINT
+      XLAMWE(2) = XLAMWE(1) + XINC 
+
+      IF (XLAMWE(1) .EQ. 21600.0) XLAMWE(1) = 0.0  
+      IF (XLAMWE(2) .EQ. 21600.0) XLAMWE(2) = 0.0  
+
+      RETURN
+      END  
+END OF FILE
+

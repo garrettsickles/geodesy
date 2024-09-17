@@ -6,8 +6,8 @@ You can find more information at the *Office of Geomatics* website:
 
 I have also copied the information from this website directly into this README below because the website has been slow and/or unreliable.
 
-
-### World Geodetic System 1984 Reference System
+---
+## World Geodetic System 1984 Reference System
 Brief Description: WGS 84 is an Earth-centered, Earth-fixed terrestrial reference system and geodetic datum. WGS 84 is based on a consistent set of constants and model parameters that describe the Earth's size, shape, and gravity and geomagnetic fields. WGS 84 is the standard U.S. Department of Defense definition of a global reference system for geospatial information and is the reference system for the Global Positioning System (GPS). It is compatible with the International Terrestrial Reference System (ITRS).
 
 Definition:
@@ -25,12 +25,12 @@ Definition:
 
 
 
-| Parameter                                                               | Notation | Value                             |
-|-------------------------------------------------------------------------|----------|-----------------------------------|
-| Semi-major Axis                                                         | a        | 6378137.0 meters                  |
-| Flattening Factor of the Earth                                          | 1/f      | 298.257223563                     |
-| Nominal Mean Angular Velocity of the Earth                              | ω        | 7292115 x 10-11 radians/second    |
-| Geocentric Gravitational Constant (Mass of Earth’s Atmosphere Included) | GM**     | 3.986004418 x 1014 meter3/second2 |
+| Parameter                                                               | Notation | Value                               |
+|-------------------------------------------------------------------------|----------|-------------------------------------|
+| Semi-major Axis                                                         | a        | 6378137.0 meters                    |
+| Flattening Factor of the Earth                                          | 1/f      | 298.257223563                       |
+| Nominal Mean Angular Velocity of the Earth                              | ω        | 7292115 x 10^-11 radians/second     |
+| Geocentric Gravitational Constant (Mass of Earth’s Atmosphere Included) | GM**     | 3.986004418 x 1014 meter^3/second^2 |
 
 ** The value of GM for GPS users is 3.9860050x1014 m^3/sec^2 as specified in the reference below.
 
